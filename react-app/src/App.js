@@ -53,8 +53,7 @@ function App() {
   const [topic, setTopic] = useState('technology');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState('home'); // 'home' | 'watch' | 'contact'
-  const [currentPage, setCurrentPage] = useState(1);
-  const { items, status, error, totalPages } = useArticles({
+  const { items, status, error, page: currentPage, totalPages, goToPage } = useArticles({
     topic,
     query: searchQuery,
     pageSize: 12,
@@ -76,7 +75,6 @@ function App() {
 
   const runSearch = (q) => {
     setSearchQuery(q);
-    setCurrentPage(1);
   };
 
   return (
@@ -89,7 +87,6 @@ function App() {
         onNavigate={(newPage) => {
           setPage(newPage);
           setSearchQuery('');
-          setCurrentPage(1);
         }}
       />
 
@@ -98,7 +95,6 @@ function App() {
           topic={topic}
           setTopic={(newTopic) => {
             setTopic(newTopic);
-            setCurrentPage(1);
           }}
         />
       )}
@@ -143,10 +139,7 @@ function App() {
                     error={error}
                     page={currentPage}
                     totalPages={totalPages}
-                    onPageChange={(pageNum) => {
-                      setCurrentPage(pageNum);
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
+                    onPageChange={goToPage}
                   />
                 </section>
               )}

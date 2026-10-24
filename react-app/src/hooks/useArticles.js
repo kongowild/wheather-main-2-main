@@ -84,7 +84,7 @@ export default function useArticles({ topic = 'technology', query = '', pageSize
         date: r.webPublicationDate,
         url: r.webUrl,
       }));
-      setItems(prev => pageNum === 1 ? mapped : [...prev, ...mapped]);
+      setItems(mapped);
       setStatus('success');
     } catch (e) {
       if (e.name === 'AbortError') return;
