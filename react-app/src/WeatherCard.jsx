@@ -44,7 +44,8 @@ function useWeather({ apiKey, initialCity = "Bengaluru" }) {
     fetchCity(nextCity.trim());
   }, [fetchCity]);
 
-  useEffect(() => { fetchCity(city); }, []); // first load
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { fetchCity(city); }, []);
 
   return useMemo(() => ({ city, data, status, error, search, setCity }), [city, data, status, error, search]);
 }
@@ -85,40 +86,47 @@ export default function WeatherCard() {
     return new Date(ms).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
   }, [data]);
 
+  const feels = data?.main?.feels_like != null ? Math.round(data.main.feels_like) : null;
+  const humidity = data?.main?.humidity;
+  const wind = data?.wind?.speed;
+
   return (
     <div className="react-weather">
       <div className="rw-header">
-        <Pin className="rw-pin" />
-        <div className="rw-city">{city}</div>
+        <div className="rw-city">{data?.name || city}</div>
         {localDateStr && <div className="rw-date">{localDateStr}</div>}
       </div>
-
-      <form className="rw-form" onSubmit={(e)=>{e.preventDefault(); search(query);}}>
-        <input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Enter Location" aria-label="Enter Location" />
-        <button type="submit" aria-label="Search"><SearchIcon /></button>
-      </form>
-
-      <div className="rw-sep" />
 
       <div className="rw-main">
         {status === "loading" && <div className="rw-muted">Loading…</div>}
         {status === "error" && <div className="rw-error">{error?.message || "Error"}</div>}
         {status === "success" && (
-          <div className="rw-row">
-            <div className="rw-left">
-              {temp != null && <div className="rw-temp">{temp}°C</div>}
-              <div className="rw-desc">{cap(desc)}</div>
-            </div>
-            <div className="rw-right">
+          <>
+            <div className="rw-row">
+              <div className="rw-left">
+                {temp != null && <div className="rw-temp">{temp}°</div>}
+                <div className="rw-desc">{cap(desc)}</div>
+              </div>
               {icon ? (
-                <img className="rw-ico" alt={desc} src={`https://openweathermap.org/img/wn/${icon}@2x.png`} />
+                <img className="rw-ico" alt="" src={`https://openweathermap.org/img/wn/${icon}@2x.png`} />
               ) : (
                 <CloudRain className="rw-big" />
               )}
             </div>
-          </div>
+            <div className="rw-details">
+              {feels != null && <span>Feels {feels}°</span>}
+              {humidity != null && <span>Humidity {humidity}%</span>}
+              {wind != null && <span>Wind {Math.round(wind * 3.6)} km/h</span>}
+            </div>
+          </>
         )}
       </div>
+
+      <form className="rw-form" onSubmit={(e)=>{e.preventDefault(); search(query);}}>
+        <Pin className="rw-pin" />
+        <input value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Change city" aria-label="Change city" />
+        <button type="submit" aria-label="Search city"><SearchIcon /></button>
+      </form>
     </div>
   );
 }

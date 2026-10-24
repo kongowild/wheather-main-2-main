@@ -24,6 +24,7 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
         className={`pagination-button ${currentPage === 1 ? 'disabled' : ''}`}
         onClick={() => onPageChange(1)}
         disabled={currentPage === 1}
+      aria-label="First page"
       >
         «
       </button>
@@ -83,55 +84,6 @@ const Pagination = ({ currentPage, totalPages, onPageChange }) => {
       >
         »
       </button>
-      
-      <style jsx>{`
-        .pagination {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          gap: 4px;
-          margin: 20px 0;
-          flex-wrap: wrap;
-        }
-        .pagination-button {
-          padding: 6px 12px;
-          border: 1px solid #ddd;
-          background: white;
-          color: #333;
-          cursor: pointer;
-          border-radius: 4px;
-          transition: all 0.2s;
-          min-width: 36px;
-          text-align: center;
-        }
-        .pagination-button:hover:not(:disabled) {
-          background: #f0f0f0;
-          border-color: #999;
-        }
-        .pagination-button.active {
-          background: #0070f3;
-          color: white;
-          border-color: #0070f3;
-        }
-        .pagination-button.disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        .pagination-ellipsis {
-          padding: 6px 8px;
-          color: #666;
-        }
-        @media (max-width: 600px) {
-          .pagination {
-            gap: 2px;
-          }
-          .pagination-button {
-            padding: 4px 8px;
-            min-width: 30px;
-            font-size: 0.9em;
-          }
-        }
-      `}</style>
     </div>
   );
 };
