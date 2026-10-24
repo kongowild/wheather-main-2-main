@@ -1,7 +1,7 @@
 import './App.css';
 import WeatherCard from './WeatherCard';
 import Calendar from './Calendar';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import Headline from './components/Headline';
@@ -13,217 +13,245 @@ import useVideos from './hooks/useVideos';
 import useGuardianVideos from './hooks/useGuardianVideos';
 import useWatchList from './hooks/useWatchList';
 import BlogSection from './components/BlogSection';
+import { formatDate } from './utils/format';
+
+const VIDEO_CHIPS = [
+  { label: 'Breaking', query: 'breaking news' },
+  { label: 'Tech', query: 'technology news' },
+  { label: 'World', query: 'world news' },
+  { label: 'Sports', query: 'sports news' },
+];
+
+function SavedList({ items, onRemove, empty, getMeta, getImage }) {
+  if (items.length === 0) return <p className="empty-note">{empty}</p>;
+  return (
+    <div className="reading-items">
+      {items.map((item) => (
+        <a key={item.id} className="reading-card" href={item.url} target="_blank" rel="noreferrer">
+          <span className="reading-thumb">
+            {getImage(item) && <img src={getImage(item)} alt="" loading="lazy" />}
+          </span>
+          <span className="reading-body">
+            <span className="reading-title">{item.title}</span>
+            <span className="reading-meta">{getMeta(item)}</span>
+          </span>
+          <button
+            className="icon-btn"
+            type="button"
+            onClick={(e) => { e.preventDefault(); onRemove(item.id); }}
+            aria-label={`Remove ${item.title}`}
+          >
+            ✕
+          </button>
+        </a>
+      ))}
+    </div>
+  );
+}
 
 function App() {
   const [topic, setTopic] = useState('technology');
   const [searchQuery, setSearchQuery] = useState('');
-  const [state, setState] = useState({
-    topic: 'world',
-    query: '',
-    pageSize: 12 
-  });
-  const { query } = state;
   const [page, setPage] = useState('home'); // 'home' | 'watch' | 'contact'
   const [currentPage, setCurrentPage] = useState(1);
-  const { items, status, error, totalPages, goToPage } = useArticles({ 
-    topic, 
-    query: searchQuery, 
-    pageSize: 12 
+  const { items, status, error, totalPages } = useArticles({
+    topic,
+    query: searchQuery,
+    pageSize: 12,
   });
-  const { list, add, remove } = useReadingList();
+  const { list, toggle, remove } = useReadingList();
   const videoSource = (process.env.REACT_APP_VIDEO_SOURCE || (typeof window !== 'undefined' ? window.VIDEO_SOURCE : '') || 'guardian').toLowerCase();
   const useYT = videoSource === 'youtube';
-  const gv = useGuardianVideos({ topic, query, pageSize: 12, enabled: !useYT });
-  const yt = useVideos({ topic, query, pageSize: 12, enabled: useYT });
+  const gv = useGuardianVideos({ topic, query: searchQuery, pageSize: 12, enabled: !useYT });
+  const yt = useVideos({ topic, query: searchQuery, pageSize: 12, enabled: useYT });
   const videos = useYT ? yt.items : gv.items;
   const vStatus = useYT ? yt.status : gv.status;
   const vError = useYT ? yt.error : gv.error;
   const vLoadMore = useYT ? yt.loadMore : gv.loadMore;
-  const { list: watchList, add: addWatch, remove: removeWatch } = useWatchList();
-  const headlineItems = items.slice(0,6);
-  const rest = items.slice(6);
+  const { list: watchList, toggle: toggleWatch, remove: removeWatch } = useWatchList();
+  const savedIds = useMemo(() => new Set(list.map((a) => a.id)), [list]);
+  const watchIds = useMemo(() => new Set(watchList.map((v) => v.id)), [watchList]);
+  const headlineItems = items.slice(0, 6);
+  const moreItems = items.slice(6);
+
+  const runSearch = (q) => {
+    setSearchQuery(q);
+    setCurrentPage(1);
+  };
+
   return (
-    <div className="app">
-      <header className="card header">
-        <Header
-          query={searchQuery}
-          setQuery={setSearchQuery}
-          onSearch={(query) => {
-            setSearchQuery(query);
-            setCurrentPage(1);
-          }}
-          currentPage={page}
-          onNavigate={(newPage) => {
-            setPage(newPage);
-            setSearchQuery('');
+    <div className="site">
+      <Header
+        query={searchQuery}
+        setQuery={setSearchQuery}
+        onSearch={runSearch}
+        currentPage={page}
+        onNavigate={(newPage) => {
+          setPage(newPage);
+          setSearchQuery('');
+          setCurrentPage(1);
+        }}
+      />
+
+      {page === 'home' && (
+        <Sidebar
+          topic={topic}
+          setTopic={(newTopic) => {
+            setTopic(newTopic);
             setCurrentPage(1);
           }}
         />
-      </header>
-
-      <aside className="card user">
-        <div className="user-card">
-          <div className="avatar">🦊</div>
-          <div>
-            <div className="name">kongowild</div>
-            <div className="muted">@kongowild • Editor</div>
-          </div>
-        </div>
-        <div className="user-bio">Building delightful UIs and curating tech stories. Coffee-powered ☕</div>
-        <div className="user-meta">
-          <span>📍 Bengaluru, IN</span>
-          <span>•</span>
-          <span>Joined 2023</span>
-        </div>
-        <div className="user-actions">
-          <button className="btn small" type="button">Follow</button>
-          <button className="btn small" type="button">Message</button>
-        </div>
-        <div className="user-stats">
-          <div className="stat">
-            <div className="stat-num">128</div>
-            <div className="stat-label">Following</div>
-          </div>
-          <div className="stat">
-            <div className="stat-num">3.2k</div>
-            <div className="stat-label">Followers</div>
-          </div>
-          <div className="stat">
-            <div className="stat-num">54</div>
-            <div className="stat-label">Lists</div>
-          </div>
-        </div>
-      </aside>
-      <aside className="card categories">
-        {page === 'home' ? (
-          <Sidebar 
-            topic={topic} 
-            setTopic={(newTopic) => {
-              setTopic(newTopic);
-              setCurrentPage(1);
-            }} 
-          />
-        ) : page === 'watch' ? (
-          <div className="section-title">Watch</div>
-        ) : (
-          <div className="section-title">Contact</div>
-        )}
-      </aside>
-
-      <main className="card headline">
-        {page === 'home' ? (
-          <Headline articles={headlineItems} addToList={add} />
-        ) : page === 'watch' ? (
-          <div className="page-content">
-            <h2>Watch</h2>
-            <p>Search and discover the latest news videos. Save videos to your Watch Later list.</p>
-          </div>
-        ) : (
-          <div className="page-content">
-            <h2>Contact</h2>
-            <p>Have feedback or ideas? Connect using the social links in the footer, or open an issue on the repository.</p>
-          </div>
-        )}
-      </main>
-      {page === 'home' ? (
-        <section className="card blogs">
-          <div className="section-title">My Reading List</div>
-          <div className="reading-items">
-            {list.length === 0 && <div className="muted">No saved articles yet.</div>}
-            {list.map(a => (
-              <a key={a.id} className="reading-card" href={a.url} target="_blank" rel="noreferrer">
-                {a.image && <img className="reading-img" src={a.image} alt="thumb" />}
-                <div className="reading-body">
-                  <div className="reading-title">{a.title}</div>
-                  <div className="reading-meta">{new Date(a.date).toLocaleDateString()}</div>
-                </div>
-                <button className="icon-btn" type="button" onClick={(e)=>{e.preventDefault(); remove(a.id);}} aria-label="Remove">✕</button>
-              </a>
-            ))}
-          </div>
-        </section>
-      ) : page === 'watch' ? (
-        <section className="card blogs">
-          <div className="section-title">Watch Later</div>
-          <div className="reading-items">
-            {watchList.length === 0 && <div className="muted">No saved videos yet.</div>}
-            {watchList.map(v => (
-              <a key={v.id} className="reading-card" href={v.url} target="_blank" rel="noreferrer">
-                {v.thumbnail && <img className="reading-img" src={v.thumbnail} alt="thumb" />}
-                <div className="reading-body">
-                  <div className="reading-title">{v.title}</div>
-                  <div className="reading-meta">{new Date(v.publishedAt).toLocaleDateString()} • {v.channel}</div>
-                </div>
-                <button className="icon-btn" type="button" onClick={(e)=>{e.preventDefault(); removeWatch(v.id);}} aria-label="Remove">✕</button>
-              </a>
-            ))}
-          </div>
-        </section>
-      ) : (
-        <section className="card blogs"><div className="muted">Use the navigation to return Home.</div></section>
       )}
-      <section className="card weather">
-        <WeatherCard />
-      </section>
-      
-      <section className="card blog">
-        <BlogSection />
-      </section>
-      <section className="card news-grid">
-        {page === 'home' ? (
-          <>
-            <div className="section-title">News Grid</div>
-            <NewsGrid 
-              items={items} 
-              onSave={add} 
-              status={status} 
-              error={error} 
-              page={currentPage}
-              totalPages={totalPages}
-              onPageChange={(pageNum) => {
-                setCurrentPage(pageNum);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
-          </>
-        ) : page === 'watch' ? (
-          <>
-            <div className="watch-toolbar">
-              <button className="chip" type="button" onClick={() => {
-                setSearchQuery('breaking news');
-                setCurrentPage(1);
-              }}>Breaking</button>
-              <button className="chip" type="button" onClick={() => {
-                setSearchQuery('technology news');
-                setCurrentPage(1);
-              }}>Tech</button>
-              <button className="chip" type="button" onClick={() => {
-                setSearchQuery('world news');
-                setCurrentPage(1);
-              }}>World</button>
-              <button className="chip" type="button" onClick={() => {
-                setSearchQuery('sports news');
-                setCurrentPage(1);
-              }}>Sports</button>
-              <span className="source-badge">Source: {useYT ? 'YouTube' : 'Guardian'}</span>
-            </div>
-            <div className="section-title">Latest Videos</div>
-            <WatchGrid items={videos} onSave={addWatch} status={vStatus} error={vError} onLoadMore={vLoadMore} />
-          </>
-        ) : (
-          <div className="muted">Use the navigation to return Home.</div>
-        )}
-      </section>
-      <section className="card calendar"><Calendar /></section>
+      {page === 'watch' && (
+        <nav className="topic-bar" aria-label="Video topics">
+          {VIDEO_CHIPS.map((c) => (
+            <button
+              key={c.query}
+              type="button"
+              className={'topic' + (searchQuery === c.query ? ' active' : '')}
+              aria-pressed={searchQuery === c.query}
+              onClick={() => runSearch(searchQuery === c.query ? '' : c.query)}
+            >
+              {c.label}
+            </button>
+          ))}
+          <span className="source-note">via {useYT ? 'YouTube' : 'The Guardian'}</span>
+        </nav>
+      )}
 
-      <footer className="card footer">
+      <div className="layout">
+        <main className="main-col">
+          {page === 'home' && (
+            <>
+              {searchQuery && (
+                <p className="search-note">
+                  Results for <strong>“{searchQuery}”</strong>{' '}
+                  <button type="button" className="text-btn" onClick={() => runSearch('')}>Clear</button>
+                </p>
+              )}
+              <section className="block">
+                <Headline articles={headlineItems} addToList={toggle} savedIds={savedIds} status={status} />
+              </section>
+              {(moreItems.length > 0 || totalPages > 1) && (
+                <section className="block">
+                  <h2 className="section-head">More stories</h2>
+                  <NewsGrid
+                    items={moreItems}
+                    onSave={toggle}
+                    savedIds={savedIds}
+                    status={status}
+                    error={error}
+                    page={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={(pageNum) => {
+                      setCurrentPage(pageNum);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  />
+                </section>
+              )}
+            </>
+          )}
+          {page === 'watch' && (
+            <section className="block">
+              <h2 className="section-head">Latest videos</h2>
+              <WatchGrid
+                items={videos}
+                onSave={toggleWatch}
+                savedIds={watchIds}
+                status={vStatus}
+                error={vError}
+                onLoadMore={vLoadMore}
+              />
+            </section>
+          )}
+          {page === 'contact' && (
+            <section className="block page-content">
+              <h2>Get in touch</h2>
+              <p>
+                Spotted a bug, have a story tip, or want to suggest a feature? The quickest way to reach me is
+                through the links below. I read everything, even if replies take a day or two.
+              </p>
+              <div className="contact-links">
+                <a href="https://github.com/kongowild/wheather" target="_blank" rel="noreferrer">GitHub</a>
+                <a href="https://twitter.com/" target="_blank" rel="noreferrer">Twitter</a>
+                <a href="https://instagram.com/" target="_blank" rel="noreferrer">Instagram</a>
+                <a href="https://discord.com/" target="_blank" rel="noreferrer">Discord</a>
+              </div>
+            </section>
+          )}
+        </main>
+
+        <aside className="side-col">
+          <section className="panel panel-weather" aria-label="Weather">
+            <WeatherCard />
+          </section>
+
+          <section className="panel panel-saved">
+            {page === 'watch' ? (
+              <>
+                <h2 className="panel-title">Watch later</h2>
+                <SavedList
+                  items={watchList}
+                  onRemove={removeWatch}
+                  empty="Videos you save will show up here."
+                  getImage={(v) => v.thumbnail}
+                  getMeta={(v) => [v.channel, formatDate(v.publishedAt)].filter(Boolean).join(' · ')}
+                />
+              </>
+            ) : (
+              <>
+                <h2 className="panel-title">Reading list</h2>
+                <SavedList
+                  items={list}
+                  onRemove={remove}
+                  empty="Tap Save on any story to read it later."
+                  getImage={(a) => a.image}
+                  getMeta={(a) => [a.sectionName, formatDate(a.date)].filter(Boolean).join(' · ')}
+                />
+              </>
+            )}
+          </section>
+
+          <section className="panel panel-calendar" aria-label="Calendar">
+            <Calendar />
+          </section>
+
+          <section className="panel panel-blog">
+            <BlogSection />
+          </section>
+
+          <section className="panel panel-profile" aria-label="About the editor">
+            <div className="profile-head">
+              <div className="monogram" aria-hidden="true">K</div>
+              <div>
+                <div className="profile-name">kongowild</div>
+                <div className="profile-handle">@kongowild · Editor, Bengaluru</div>
+              </div>
+            </div>
+            <p className="profile-bio">Building delightful UIs and curating tech stories. Runs on filter coffee.</p>
+            <div className="profile-stats">
+              <span><strong>128</strong> following</span>
+              <span><strong>3.2k</strong> followers</span>
+              <span><strong>54</strong> lists</span>
+            </div>
+            <div className="profile-actions">
+              <button className="btn" type="button">Follow</button>
+              <button className="btn ghost" type="button">Message</button>
+            </div>
+          </section>
+        </aside>
+      </div>
+
+      <footer className="site-footer">
+        <div className="footer-brand">Kongowild <em>News</em></div>
         <div className="footer-links">
           <a href="https://instagram.com/" target="_blank" rel="noreferrer">Instagram</a>
           <a href="https://twitter.com/" target="_blank" rel="noreferrer">Twitter</a>
           <a href="https://discord.com/" target="_blank" rel="noreferrer">Discord</a>
           <a href="https://github.com/kongowild/wheather" target="_blank" rel="noreferrer">GitHub</a>
         </div>
-        <div className="muted">© 2025 Kongowild News. All rights reserved.</div>
+        <div className="footer-copy">© {new Date().getFullYear()} Kongowild News. News from The Guardian, weather from OpenWeather.</div>
       </footer>
     </div>
   );
